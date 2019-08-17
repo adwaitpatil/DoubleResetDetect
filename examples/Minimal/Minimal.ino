@@ -7,6 +7,7 @@
  */
 
 #include <DoubleResetDetect.h>
+#include <EEPROM.h>
 
 // maximum number of seconds between resets that
 // counts as a double reset 
@@ -17,11 +18,17 @@
 // of the address block
 #define DRD_ADDRESS 0x00
 
+// EEPROM adress at which to store the compile
+// date/time to detect first run after flash.
+// Edit accordingly if using EEPROM elsewhere.
+#define EEPROM_ADDRESS 0x00
+bool ipl(); // Define ipl function
+
 DoubleResetDetect drd(DRD_TIMEOUT, DRD_ADDRESS);
 
 void setup()
 {
-    Serial.begin(74880);
+    Serial.begin(115200);
 
     Serial.println();
     Serial.println("***************************************");
@@ -29,12 +36,9 @@ void setup()
     Serial.println("***************************************");
     Serial.println();
 
-    if (drd.detect())
-    {
+    if (drd.detect() && !ipl()) {
         Serial.println("** Double reset boot **");
-    }
-    else
-    {
+    } else {
         Serial.println("** Normal boot **");
     }
 }
@@ -42,4 +46,20 @@ void setup()
 void loop()
 {
     // do stuff here
+}
+
+bool ipl() { // Determine if this is the first start after loading image
+    char thisver[20] = __DATE__ __TIME__; // Sets at compile-time
+    char savever[20] = "";
+    bool _ipl = false;
+
+    EEPROM.begin(20);
+    EEPROM.get(EEPROM_ADDRESS, savever);
+    if (strcmp (thisver, savever) != 0) {
+        EEPROM.put(EEPROM_ADDRESS, thisver);
+        EEPROM.commit();
+        _ipl = true;
+    }
+    EEPROM.end();
+    return _ipl;
 }
